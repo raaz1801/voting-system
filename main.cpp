@@ -150,21 +150,22 @@ void startAdmin() {
                 cout << " (" << voteCounts[i] << ")" << endl;
             }
 
-        } else if(adminOption == 3) {
-            ofstream report("Election_Audit_Trail.txt");
+       } else if(adminOption == 3) {
+            // Opens the file with the .txt extension, but forces binary mode
+            ofstream report("Election_Audit_Trail.txt", ios::out | ios::binary);
+            
             if(report.is_open()) {
-                report << "--- SECURE E-VOTING AUDIT REPORT ---\n\n";
-                for(int i = 1; i <= 5; i++) {
-                    report << partyNames[i] << " Total: " << voteCounts[i] << " votes\n";
-                }
-                report << "\nTotal Participation: " << voterCount;
-                report << "\nVerified 6-Digit ID Log Count: " << voterCount;
+                // Write the voter count integer directly as binary bytes
+                report.write(reinterpret_cast<char*>(&voterCount), sizeof(voterCount));
+                
+                // Write the entire vote counts array as raw binary memory
+                report.write(reinterpret_cast<char*>(voteCounts), sizeof(voteCounts));
+                
                 report.close();
-                cout << ">> SUCCESS: Audit Trail 'Election_Audit_Trail.txt' generated.\n";
+                cout << ">> SUCCESS: Secure Binary Audit Trail 'Election_Audit_Trail.txt' generated.\n";
             } else {
                 cout << ">> ERROR: File System Error.\n";
             }
-
         } else if(adminOption == 4) {
             char confirm;
             cout << "WARNING: Purge all election data? (y/n): ";
