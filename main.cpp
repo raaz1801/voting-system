@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <iomanip>
+#include <cstdlib>
 
 using namespace std;
 
@@ -106,6 +107,7 @@ void startVoting() {
 void startAdmin() {
     int adminOption;
     while(true) {
+        system("cls");
         cout << "\n==================================";
         cout << "\n          ADMIN DASHBOARD         ";
         cout << "\n==================================";
@@ -185,6 +187,8 @@ void startAdmin() {
 
 // --- Main System Entry ---
 int main() {
+    while(true) {
+        system("cls");
     initializeSystem();
     int mainChoice;
 
