@@ -187,8 +187,6 @@ void startAdmin() {
 
 // --- Main System Entry ---
 int main() {
-    while(true) {
-        system("cls");
     initializeSystem();
     int mainChoice;
 
