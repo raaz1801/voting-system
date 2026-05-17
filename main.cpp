@@ -48,6 +48,7 @@ void initializeSystem() {
 
 // --- Voter Panel ---
 void startVoting() {
+    system("cls"); // Wipes the main menu away before showing the voting console
     string id;
     cout << "\n----------------------------------";
     cout << "\n       VOTER AUTHENTICATION       ";
@@ -58,6 +59,9 @@ void startVoting() {
     // 1. Validate Length (Exactly 6 digits)
     if(id.length() != 6) {
         cout << ">> SECURITY ERROR: ID must be exactly 6 digits!\n";
+        cout << "\nPress Enter to return to main menu...";
+        clearRubbish();
+        cin.get();
         return;
     }
 
@@ -65,6 +69,9 @@ void startVoting() {
     for(char c : id) {
         if(!isdigit(c)) {
             cout << ">> ERROR: Invalid ID format! Numeric digits only.\n";
+            cout << "\nPress Enter to return to main menu...";
+            clearRubbish();
+            cin.get();
             return;
         }
     }
@@ -73,6 +80,9 @@ void startVoting() {
     for(int i = 0; i < voterCount; i++) {
         if(registeredVoters[i] == id) {
             cout << ">> ACCESS DENIED: ID " << id << " has already voted!\n";
+            cout << "\nPress Enter to return to main menu...";
+            clearRubbish();
+            cin.get();
             return;
         }
     }
@@ -90,6 +100,8 @@ void startVoting() {
     if(!(cin >> choice)) {
         cout << ">> ERROR: Invalid input type! Session Terminated.\n";
         clearRubbish();
+        cout << "\nPress Enter to return to main menu...";
+        cin.get();
         return;
     }
 
@@ -101,15 +113,19 @@ void startVoting() {
     } else {
         cout << ">> ERROR: Choice out of range (1-5)!\n";
     }
+
+    cout << "\nPress Enter to return to main menu...";
+    clearRubbish();
+    cin.get();
 }
 
 // --- Admin Panel ---
 void startAdmin() {
     int adminOption;
     while(true) {
-        system("cls");
+        system("cls"); // Wipes screen on menu loop refresh to keep everything structured
         cout << "\n==================================";
-        cout << "\n          ADMIN DASHBOARD         ";
+        cout << "\n           ADMIN DASHBOARD          ";
         cout << "\n==================================";
         cout << "\n1. View Live Results Summary";
         cout << "\n2. View Voting Graph (Visual)";
@@ -121,6 +137,8 @@ void startAdmin() {
         if(!(cin >> adminOption)) {
             cout << ">> ERROR: Numeric input required.\n";
             clearRubbish();
+            cout << "\nPress Enter to continue...";
+            cin.get();
             continue;
         }
 
@@ -141,6 +159,10 @@ void startAdmin() {
             cout << "-------------------------------------------------------\n";
             cout << "TOTAL VOTERS RECORDED: " << voterCount << endl;
             cout << "CURRENT LEADER       : " << winner << endl;
+            
+            cout << "\nPress Enter to go back to dashboard...";
+            clearRubbish();
+            cin.get();
 
         } else if(adminOption == 2) {
             cout << "\n--- STATISTICAL TRENDS (GRAPH) ---\n";
@@ -151,8 +173,12 @@ void startAdmin() {
                 }
                 cout << " (" << voteCounts[i] << ")" << endl;
             }
+            
+            cout << "\nPress Enter to go back to dashboard...";
+            clearRubbish();
+            cin.get();
 
-       } else if(adminOption == 3) {
+        } else if(adminOption == 3) {
             // Opens the file with the .txt extension, but forces binary mode
             ofstream report("Election_Audit_Trail.txt", ios::out | ios::binary);
             
@@ -168,6 +194,11 @@ void startAdmin() {
             } else {
                 cout << ">> ERROR: File System Error.\n";
             }
+            
+            cout << "\nPress Enter to go back to dashboard...";
+            clearRubbish();
+            cin.get();
+
         } else if(adminOption == 4) {
             char confirm;
             cout << "WARNING: Purge all election data? (y/n): ";
@@ -176,11 +207,18 @@ void startAdmin() {
                 initializeSystem();
                 cout << ">> DATA PURGE COMPLETE.\n";
             }
+            
+            cout << "\nPress Enter to go back to dashboard...";
+            clearRubbish();
+            cin.get();
 
         } else if(adminOption == 5) {
             break; 
         } else {
             cout << ">> ERROR: Option not recognized.\n";
+            cout << "\nPress Enter to continue...";
+            clearRubbish();
+            cin.get();
         }
     }
 }
@@ -191,6 +229,7 @@ int main() {
     int mainChoice;
 
     while(true) {
+        system("cls"); // Kept here so returning to main terminal cleanly updates UI
         cout << "\n**********************************";
         cout << "\n* SUPREME E-VOTING TERMINAL     *";
         cout << "\n**********************************";
@@ -203,6 +242,8 @@ int main() {
         if(!(cin >> mainChoice)) {
             cout << ">> ERROR: System only accepts numeric commands.\n";
             clearRubbish();
+            cout << "\nPress Enter to try again...";
+            cin.get();
             continue;
         }
 
@@ -218,12 +259,19 @@ int main() {
                 startAdmin();
             } else {
                 cout << ">> SECURITY BREACH: Access Denied. Key Incorrect.\n";
+                cout << "\nPress Enter to try again...";
+                clearRubbish();
+                cin.get();
             }
         } else if(mainChoice == 3) {
+            system("cls");
             cout << "Exiting System Architecture... Secure Shutdown Complete.\n";
             break;
         } else {
             cout << ">> ERROR: Command " << mainChoice << " is outside system scope.\n";
+            cout << "\nPress Enter to continue...";
+            clearRubbish();
+            cin.get();
         }
     }
 
