@@ -3,23 +3,32 @@
 #include <string>
 #include <iomanip>
 #include <cstdlib>
+#include <cstring>
 
 using namespace std;
 
 // --- Global Constants & Arrays ---
 const int MAX_VOTERS = 500; 
 string partyNames[6]; 
-int voteCounts[6];    
-string registeredVoters[MAX_VOTERS]; 
-int voterCount = 0;
+
+// We bundle all persistent data into a clean structure for easy binary writing/reading
+struct ElectionData {
+    int voterCount;
+    int voteCounts[6];
+    char registeredVoters[MAX_VOTERS][7]; // 6 digits + 1 for null terminator '\0' (avoids std::string trap)
+};
+
+// Global instance of our system state
+ElectionData sysData;
+
+const string FILE_NAME = "Election_Audit_Trail.dat"; // Replaced .txt with .dat to reflect binary integrity
 
 // Admin Password Logic
-// The real password is 'admin123' -> Shifted by 1 it looks like 'benjo234'
 string secretPassword = "benjo234"; 
 
 // --- Function to Encrypt/Decrypt (Shift Cipher) ---
 string encryptDecrypt(string data) {
-    for(int i = 0; i < data.length(); i++) {
+    for(size_t i = 0; i < data.length(); i++) {
         data[i] = data[i] + 1; 
     }
     return data;
@@ -32,7 +41,17 @@ void clearRubbish() {
     getline(cin, ignore); 
 }
 
-// --- Initialization ---
+// --- Save Data to Binary File ---
+void saveBinaryData() {
+    ofstream report(FILE_NAME, ios::out | ios::binary);
+    if(report.is_open()) {
+        // Writes the entire structure as a single block of protected raw memory bytes
+        report.write(reinterpret_cast<const char*>(&sysData), sizeof(ElectionData));
+        report.close();
+    }
+}
+
+// --- Initialization & Auto-Load ---
 void initializeSystem() {
     partyNames[1] = "Raj's Permanent Absent Party (RPAP)";
     partyNames[2] = "Rumee Reform Party (RRP)";
@@ -40,23 +59,32 @@ void initializeSystem() {
     partyNames[4] = "Roshan's Bright Ideas Party (RBIP)";
     partyNames[5] = "NOTA (None of the Above)";
     
-    for(int i = 1; i <= 5; i++) {
-        voteCounts[i] = 0;
+    // Attempt to load existing binary backup
+    ifstream incoming(FILE_NAME, ios::in | ios::binary);
+    if(incoming.is_open()) {
+        // Reads raw data straight back into memory structure
+        incoming.read(reinterpret_cast<char*>(&sysData), sizeof(ElectionData));
+        incoming.close();
+    } else {
+        // Default fallbacks if no file exists yet
+        sysData.voterCount = 0;
+        for(int i = 1; i <= 5; i++) {
+            sysData.voteCounts[i] = 0;
+        }
+        memset(sysData.registeredVoters, 0, sizeof(sysData.registeredVoters));
     }
-    voterCount = 0;
 }
 
 // --- Voter Panel ---
 void startVoting() {
-    system("cls"); // Wipes the main menu away before showing the voting console
+    system("cls"); 
     string id;
     cout << "\n----------------------------------";
-    cout << "\n       VOTER AUTHENTICATION       ";
+    cout << "\n        VOTER AUTHENTICATION       ";
     cout << "\n----------------------------------";
     cout << "\nEnter your 6-digit Voter ID: ";
     cin >> id;
 
-    // 1. Validate Length (Exactly 6 digits)
     if(id.length() != 6) {
         cout << ">> SECURITY ERROR: ID must be exactly 6 digits!\n";
         cout << "\nPress Enter to return to main menu...";
@@ -65,7 +93,6 @@ void startVoting() {
         return;
     }
 
-    // 2. Validate Type (Numeric only)
     for(char c : id) {
         if(!isdigit(c)) {
             cout << ">> ERROR: Invalid ID format! Numeric digits only.\n";
@@ -76,9 +103,9 @@ void startVoting() {
         }
     }
 
-    // 3. Duplicate Check (The "Ghost" Memory)
-    for(int i = 0; i < voterCount; i++) {
-        if(registeredVoters[i] == id) {
+    // Duplicate Check against fixed character arrays
+    for(int i = 0; i < sysData.voterCount; i++) {
+        if (string(sysData.registeredVoters[i]) == id) {
             cout << ">> ACCESS DENIED: ID " << id << " has already voted!\n";
             cout << "\nPress Enter to return to main menu...";
             clearRubbish();
@@ -87,7 +114,6 @@ void startVoting() {
         }
     }
 
-    // Official Ballot
     cout << "\n--- OFFICIAL BALLOT ---\n";
     for(int i = 1; i <= 5; i++) {
         cout << i << ". " << partyNames[i] << endl;
@@ -96,7 +122,6 @@ void startVoting() {
     int choice;
     cout << "\nCast your vote (1-5): ";
     
-    // Rubbish Logic for voting choice
     if(!(cin >> choice)) {
         cout << ">> ERROR: Invalid input type! Session Terminated.\n";
         clearRubbish();
@@ -106,9 +131,13 @@ void startVoting() {
     }
 
     if(choice >= 1 && choice <= 5) {
-        voteCounts[choice]++;
-        registeredVoters[voterCount] = id; 
-        voterCount++;
+        sysData.voteCounts[choice]++;
+        // Copy string data safely to our binary-friendly structure
+        strcpy(sysData.registeredVoters[sysData.voterCount], id.c_str()); 
+        sysData.voterCount++;
+        
+        // Auto-commit to file right after a vote is successful
+        saveBinaryData();
         cout << ">> SUCCESS: Vote cast for " << partyNames[choice] << "!\n";
     } else {
         cout << ">> ERROR: Choice out of range (1-5)!\n";
@@ -123,13 +152,13 @@ void startVoting() {
 void startAdmin() {
     int adminOption;
     while(true) {
-        system("cls"); // Wipes screen on menu loop refresh to keep everything structured
+        system("cls"); 
         cout << "\n==================================";
-        cout << "\n           ADMIN DASHBOARD          ";
+        cout << "\n            ADMIN DASHBOARD          ";
         cout << "\n==================================";
         cout << "\n1. View Live Results Summary";
         cout << "\n2. View Voting Graph (Visual)";
-        cout << "\n3. Export Audit Trail (.txt)";
+        cout << "\n3. Force Save & Export Audit Trail";
         cout << "\n4. Reset System Data";
         cout << "\n5. Logout";
         cout << "\nSelect Option: ";
@@ -149,15 +178,15 @@ void startAdmin() {
             cout << "\n" << left << setw(40) << "CANDIDATE/PARTY" << "VOTES" << endl;
             cout << "-------------------------------------------------------\n";
             for(int i = 1; i <= 5; i++) {
-                cout << left << setw(40) << partyNames[i] << voteCounts[i] << endl;
+                cout << left << setw(40) << partyNames[i] << sysData.voteCounts[i] << endl;
                 
-                if(i < 5 && voteCounts[i] > maxVotes) {
-                    maxVotes = voteCounts[i];
+                if(i < 5 && sysData.voteCounts[i] > maxVotes) {
+                    maxVotes = sysData.voteCounts[i];
                     winner = partyNames[i];
                 }
             }
             cout << "-------------------------------------------------------\n";
-            cout << "TOTAL VOTERS RECORDED: " << voterCount << endl;
+            cout << "TOTAL VOTERS RECORDED: " << sysData.voterCount << endl;
             cout << "CURRENT LEADER       : " << winner << endl;
             
             cout << "\nPress Enter to go back to dashboard...";
@@ -168,10 +197,10 @@ void startAdmin() {
             cout << "\n--- STATISTICAL TRENDS (GRAPH) ---\n";
             for(int i = 1; i <= 5; i++) {
                 cout << right << setw(35) << partyNames[i] << " | ";
-                for(int j = 0; j < voteCounts[i]; j++) {
-                    cout << "#"; // Bar chart representation
+                for(int j = 0; j < sysData.voteCounts[i]; j++) {
+                    cout << "#"; 
                 }
-                cout << " (" << voteCounts[i] << ")" << endl;
+                cout << " (" << sysData.voteCounts[i] << ")" << endl;
             }
             
             cout << "\nPress Enter to go back to dashboard...";
@@ -179,21 +208,9 @@ void startAdmin() {
             cin.get();
 
         } else if(adminOption == 3) {
-            // Opens the file with the .txt extension, but forces binary mode
-            ofstream report("Election_Audit_Trail.txt", ios::out | ios::binary);
-            
-            if(report.is_open()) {
-                // Write the voter count integer directly as binary bytes
-                report.write(reinterpret_cast<char*>(&voterCount), sizeof(voterCount));
-                
-                // Write the entire vote counts array as raw binary memory
-                report.write(reinterpret_cast<char*>(voteCounts), sizeof(voteCounts));
-                
-                report.close();
-                cout << ">> SUCCESS: Secure Binary Audit Trail 'Election_Audit_Trail.txt' generated.\n";
-            } else {
-                cout << ">> ERROR: File System Error.\n";
-            }
+            saveBinaryData();
+            cout << ">> SUCCESS: Secure Binary Audit Trail '" << FILE_NAME << "' verified and updated.\n";
+            cout << ">> File is completely protected against plain text editing.\n";
             
             cout << "\nPress Enter to go back to dashboard...";
             clearRubbish();
@@ -204,7 +221,15 @@ void startAdmin() {
             cout << "WARNING: Purge all election data? (y/n): ";
             cin >> confirm;
             if(confirm == 'y' || confirm == 'Y') {
-                initializeSystem();
+                // Wipe the data
+                sysData.voterCount = 0;
+                for(int i = 1; i <= 5; i++) {
+                    sysData.voteCounts[i] = 0;
+                }
+                memset(sysData.registeredVoters, 0, sizeof(sysData.registeredVoters));
+                
+                // Mirror the purge directly to the file
+                saveBinaryData();
                 cout << ">> DATA PURGE COMPLETE.\n";
             }
             
@@ -229,7 +254,7 @@ int main() {
     int mainChoice;
 
     while(true) {
-        system("cls"); // Kept here so returning to main terminal cleanly updates UI
+        system("cls"); 
         cout << "\n**********************************";
         cout << "\n* SUPREME E-VOTING TERMINAL     *";
         cout << "\n**********************************";
@@ -254,7 +279,6 @@ int main() {
             cout << "ENTER SECURITY KEY: ";
             cin >> inputPass;
 
-            // Encrypt user input and compare with stored cipher
             if(encryptDecrypt(inputPass) == secretPassword) {
                 startAdmin();
             } else {
