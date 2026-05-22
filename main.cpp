@@ -12,6 +12,9 @@ using namespace std;
 const int MAX_VOTERS = 500;
 string partyNames[6];
 
+// Secret key for XOR encryption of the .dat file
+const char ENCRYPTION_KEY = 'X'; 
+
 // Bundle all persistent data into a clean structure for binary writing/reading
 struct ElectionData {
     int voterCount;
@@ -25,7 +28,7 @@ ElectionData sysData;
 const string DAT_FILE = "Election_Audit_Trail.dat";
 const string TXT_FILE = "Election_Audit_Trail.txt";
 
-// Admin Password
+// Admin Password (Encrypted form of "admin123")
 string secretPassword = "benjo234";
 
 // --- Shift Cipher Encrypt ---
@@ -43,11 +46,22 @@ void clearRubbish() {
     getline(cin, ignore);
 }
 
-// --- Save binary backup (.dat) ---
+// --- Save binary backup (.dat) with Encryption ---
 void saveBinaryData() {
     ofstream file(DAT_FILE, ios::out | ios::binary);
     if (file.is_open()) {
-        file.write(reinterpret_cast<const char*>(&sysData), sizeof(ElectionData));
+        // Create a copy of the data so we don't scramble the active memory
+        ElectionData encryptedData = sysData;
+        
+        // Treat the struct as an array of characters (bytes)
+        char* bytePointer = reinterpret_cast<char*>(&encryptedData);
+        
+        // XOR Cipher: Encrypt every single byte
+        for (size_t i = 0; i < sizeof(ElectionData); i++) {
+            bytePointer[i] ^= ENCRYPTION_KEY;
+        }
+        
+        file.write(reinterpret_cast<const char*>(&encryptedData), sizeof(ElectionData));
         file.close();
     }
 }
@@ -98,7 +112,7 @@ void exportAuditTrail() {
     cout << ">> Binary backup also saved to '" << DAT_FILE << "'\n";
 }
 
-// --- Initialize System & Auto-Load ---
+// --- Initialize System & Auto-Load (with Decryption) ---
 void initializeSystem() {
     partyNames[1] = "Raj's Permanent Absent Party (RPAP)";
     partyNames[2] = "Rumee Reform Party (RRP)";
@@ -111,6 +125,12 @@ void initializeSystem() {
     if (incoming.is_open()) {
         incoming.read(reinterpret_cast<char*>(&sysData), sizeof(ElectionData));
         incoming.close();
+        
+        // XOR Cipher is symmetric! Running it again decrypts the data
+        char* bytePointer = reinterpret_cast<char*>(&sysData);
+        for (size_t i = 0; i < sizeof(ElectionData); i++) {
+            bytePointer[i] ^= ENCRYPTION_KEY;
+        }
     } else {
         // Defaults if no file exists
         sysData.voterCount = 0;
@@ -180,7 +200,7 @@ void startVoting() {
         sysData.voteCounts[choice]++;
         strcpy(sysData.registeredVoters[sysData.voterCount], id.c_str());
         sysData.voterCount++;
-        saveBinaryData();
+        saveBinaryData(); // Save and encrypt immediately after a vote
         cout << ">> SUCCESS: Vote cast for " << partyNames[choice] << "!\n";
     } else {
         cout << ">> ERROR: Choice out of range (1-5)!\n";
@@ -324,6 +344,7 @@ int main() {
             cout << "ENTER SECURITY KEY: ";
             cin >> inputPass;
 
+            // Password is "admin123" (encrypts to "benjo234")
             if (encryptDecrypt(inputPass) == secretPassword) {
                 startAdmin();
             } else {
